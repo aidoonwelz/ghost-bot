@@ -172,7 +172,7 @@ async function loadPF(){
   try{ const r=await fetch("portfolio.json?t="+Date.now(),{cache:"no-store"}); if(r.ok){ PF=await r.json(); } }
   catch(e){}
   if(PF) render();                // paint immediately from portfolio data
-  else document.getElementById("app").innerHTML='<div class="loading">Waiting for the bot\\'s first run…</div>';
+  else document.getElementById("app").innerHTML=`<div class="loading">Waiting for the bot's first run…</div>`;
 }
 
 async function tick(){ await livePrices(); if(PF) render(); }
