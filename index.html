@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>👻 GHOST — Terminal</title>
+<style>
+  :root{
+    --bg:#06080d; --panel:#0d131f; --panel2:#0a0f18; --line:#1a2433;
+    --txt:#e8edf7; --dim:#7d8aa3; --green:#16c784; --red:#ea3943; --accent:#5a8bff; --gold:#f0b90b;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ background:
+        radial-gradient(1200px 500px at 80% -10%, rgba(90,139,255,.08), transparent 60%),
+        radial-gradient(900px 500px at -10% 110%, rgba(22,199,132,.06), transparent 60%),
+        var(--bg);
+        color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+        -webkit-font-smoothing:antialiased; padding:16px; max-width:900px; margin:0 auto; min-height:100vh; }
+  .mono{ font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:19px; letter-spacing:.06em; }
+  .brand small{ color:var(--dim); font-weight:500; letter-spacing:.12em; font-size:10px; }
+  .live{ display:flex; align-items:center; gap:6px; color:var(--green); font-size:11px; font-weight:700; letter-spacing:.1em; }
+  .dot{ width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 10px var(--green); animation:pulse 1.6s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.82)} }
+
+  .hero{ background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--line);
+         border-radius:20px; padding:24px; margin-bottom:14px; position:relative; overflow:hidden; }
+  .heroLabel{ color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.14em; }
+  .equity{ font-size:52px; font-weight:800; letter-spacing:-.02em; line-height:1.05; margin-top:6px;
+           text-shadow:0 0 34px rgba(90,139,255,.25); }
+  .retrow{ display:flex; align-items:center; gap:12px; margin-top:8px; flex-wrap:wrap; }
+  .ret{ font-size:18px; font-weight:800; padding:4px 12px; border-radius:10px; }
+  .chip{ font-size:12px; color:var(--dim); }
+  .up{ color:var(--green); } .down{ color:var(--red); }
+  .upbg{ background:rgba(22,199,132,.13); color:var(--green); }
+  .downbg{ background:rgba(234,57,73,.13); color:var(--red); }
+  svg{ width:100%; height:200px; display:block; margin-top:18px; }
+
+  .stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+  @media(min-width:620px){ .stats{ grid-template-columns:repeat(6,1fr); } }
+  .stat{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:13px 10px; text-align:center; }
+  .stat .k{ color:var(--dim); font-size:10px; text-transform:uppercase; letter-spacing:.09em; }
+  .stat .v{ font-size:19px; font-weight:800; margin-top:5px; }
+
+  .sec{ color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.12em; margin:20px 4px 11px;
+        display:flex; justify-content:space-between; }
+  .book{ display:grid; gap:8px; }
+  .row{ background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:12px 15px;
+        display:grid; grid-template-columns:1.2fr 1fr 1fr auto; align-items:center; gap:8px; transition:background .3s; }
+  .row .sym{ font-weight:800; font-size:15px; }
+  .row .sub{ color:var(--dim); font-size:10.5px; margin-top:2px; }
+  .row .price{ text-align:right; font-weight:700; }
+  .row .pnl{ text-align:right; font-weight:800; font-size:14px; }
+  .badge{ font-size:10px; font-weight:800; padding:4px 10px; border-radius:999px; letter-spacing:.05em; justify-self:end; }
+  .bLong{ background:rgba(22,199,132,.16); color:var(--green); }
+  .bFlat{ background:rgba(125,138,163,.14); color:var(--dim); }
+  .flash{ animation:flash .6s; }
+  @keyframes flash{ 0%{background:rgba(90,139,255,.14)} 100%{background:var(--panel)} }
+  .loading{ color:var(--dim); text-align:center; padding:50px; }
+  .foot{ text-align:center; color:var(--dim); font-size:11px; margin:22px 0 6px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">👻 GHOST <small>EMA 9×21 · 3× · PAPER</small></div>
+    <div class="live"><span class="dot"></span> LIVE</div>
+  </div>
+  <div id="app"><div class="loading">Booting terminal…</div></div>
+  <div class="foot" id="foot"></div>
+
+<script>
+const COINS=["BTC-USD","ETH-USD","SOL-USD","XRP-USD","DOGE-USD","LINK-USD"];
+const money=n=>"$"+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const px=n=>"$"+Number(n).toLocaleString(undefined,{minimumFractionDigits: n<1?4:2,maximumFractionDigits:n<1?4:2});
+const short=a=>a.replace("-USD","");
+let PF=null, PRICES={}, prevEq=null;
+
+async function livePrices(){
+  await Promise.all(COINS.map(async a=>{
+    try{ const r=await fetch(`https://api.exchange.coinbase.com/products/${a}/ticker`,{cache:"no-store"});
+         if(r.ok){ PRICES[a]=parseFloat((await r.json()).price); } }catch(e){}
+  }));
+}
+
+function valueOf(a,p){
+  const live = PRICES[a];
+  if(p.units>0){ const pr = live ?? p.entry; return {val:Math.max(0,p.margin+p.units*(pr-p.entry)), price:pr, live:!!live}; }
+  return {val:p.cash, price:live ?? null, live:!!live};
+}
+
+function equityNow(pf){
+  let eq=0; for(const [a,p] of Object.entries(pf.pos)) eq+=valueOf(a,p).val; return eq;
+}
+
+function sparkline(history, liveEq){
+  const pts=(history||[]).map(h=>h.equity);
+  if(liveEq!=null) pts.push(liveEq);
+  if(pts.length<2) return '<svg viewBox="0 0 800 200"></svg>';
+  const W=800,H=200,P=10,min=Math.min(...pts),max=Math.max(...pts),span=(max-min)||1;
+  const X=i=>P+(i/(pts.length-1))*(W-2*P), Y=v=>P+(1-(v-min)/span)*(H-2*P);
+  let d=""; pts.forEach((v,i)=>d+=(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)+" ");
+  const area=d+`L${X(pts.length-1)} ${H-P} L${X(0)} ${H-P} Z`;
+  const up=pts[pts.length-1]>=pts[0], col=up?"#16c784":"#ea3943", by=Y(PF.start);
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${col}" stop-opacity=".32"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/>
+      </linearGradient>
+      <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <line x1="${P}" y1="${by}" x2="${W-P}" y2="${by}" stroke="#243044" stroke-width="1" stroke-dasharray="5 5"/>
+    <path d="${area}" fill="url(#g)"/>
+    <path d="${d}" fill="none" stroke="${col}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" filter="url(#glow)"/>
+  </svg>`;
+}
+
+function render(){
+  const pf=PF, liveEq=equityNow(pf), ret=(liveEq/pf.start-1)*100, up=ret>=0;
+  const open=Object.values(pf.pos).filter(p=>p.units>0).length;
+  const dayEq=pf.last_equity??pf.start, dayDelta=liveEq-dayEq;
+
+  const rows=Object.entries(pf.pos).map(([a,p])=>{
+    const isLong=p.units>0, info=valueOf(a,p);
+    const pnl = isLong ? (info.val - p.margin) : 0;
+    const pnlPct = isLong ? (pnl/p.margin*100) : 0;
+    const liveTag = info.live ? '' : '<span style="color:var(--dim)"> ·</span>';
+    return `<div class="row" data-sym="${a}">
+      <div><div class="sym">${short(a)}${liveTag}</div><div class="sub">${isLong?('entry '+px(p.entry)+' · liq '+px(p.liq)):'in cash'}</div></div>
+      <div class="price mono">${info.price?px(info.price):'—'}</div>
+      <div class="pnl mono ${pnl>=0?'up':'down'}">${isLong?((pnl>=0?'+':'')+money(pnl).replace('$','$')+' ('+(pnlPct>=0?'+':'')+pnlPct.toFixed(1)+'%)'):'—'}</div>
+      <span class="badge ${isLong?'bLong':'bFlat'}">${isLong?'LONG':'CASH'}</span>
+    </div>`;
+  }).join("");
+
+  document.getElementById("app").innerHTML=`
+    <div class="hero">
+      <div class="heroLabel">Total Equity</div>
+      <div class="equity mono">${money(liveEq)}</div>
+      <div class="retrow">
+        <span class="ret ${up?'upbg':'downbg'} mono">${up?'▲':'▼'} ${ret.toFixed(2)}%</span>
+        <span class="chip mono">today ${dayDelta>=0?'+':''}${money(dayDelta)}</span>
+        <span class="chip">start ${money(pf.start)}</span>
+      </div>
+      ${sparkline(pf.history, liveEq)}
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="k">Return</div><div class="v mono ${up?'up':'down'}">${ret.toFixed(1)}%</div></div>
+      <div class="stat"><div class="k">Realized</div><div class="v mono ${(pf.realized||0)>=0?'up':'down'}">${money(pf.realized||0)}</div></div>
+      <div class="stat"><div class="k">Open</div><div class="v mono">${open}</div></div>
+      <div class="stat"><div class="k">Trades</div><div class="v mono">${pf.trades||0}</div></div>
+      <div class="stat"><div class="k">Liq</div><div class="v mono ${(pf.liquidations||0)>0?'down':''}">${pf.liquidations||0}</div></div>
+      <div class="stat"><div class="k">Lev</div><div class="v mono" style="color:var(--gold)">3×</div></div>
+    </div>
+    <div class="sec"><span>Positions</span><span>live P&amp;L</span></div>
+    <div class="book">${rows}</div>`;
+
+  const last=pf.history&&pf.history.length?pf.history[pf.history.length-1].t:null;
+  document.getElementById("foot").textContent=(last?("daily snapshot "+last.replace("T"," ")+" UTC · "):"")+"prices live · paper money";
+
+  if(prevEq!=null && Math.abs(liveEq-prevEq)>0.005){
+    document.querySelectorAll(".row").forEach(r=>{ r.classList.remove("flash"); void r.offsetWidth; r.classList.add("flash"); });
+  }
+  prevEq=liveEq;
+}
+
+async function loadPF(){
+  try{ const r=await fetch("portfolio.json?t="+Date.now(),{cache:"no-store"}); if(r.ok){ PF=await r.json(); } }
+  catch(e){}
+  if(!PF){ document.getElementById("app").innerHTML='<div class="loading">Waiting for the bot\\'s first run…</div>'; }
+}
+
+async function tick(){ await livePrices(); if(PF) render(); }
+
+(async ()=>{ await loadPF(); await tick(); })();
+setInterval(tick, 8000);       // live prices every 8s
+setInterval(loadPF, 120000);   // re-pull portfolio every 2 min
+</script>
+</body>
+</html>
