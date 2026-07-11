@@ -1,0 +1,86 @@
+{
+  "start": 10000.0,
+  "realized": 0.0,
+  "trades": 7,
+  "liquidations": 0,
+  "history": [
+    {
+      "t": "2026-07-11T20:02",
+      "equity": 10000.0
+    }
+  ],
+  "pos": {
+    "BTC-USD": {
+      "cash": 0.0,
+      "units": 0.04664882586446251,
+      "entry": 64245.99,
+      "margin": 1000.0,
+      "liq": 43901.4265
+    },
+    "ETH-USD": {
+      "cash": 0.0,
+      "units": 1.643353384035839,
+      "entry": 1823.71,
+      "margin": 1000.0,
+      "liq": 1246.2018333333333
+    },
+    "SOL-USD": {
+      "cash": 0.0,
+      "units": 38.383709016393446,
+      "entry": 78.08,
+      "margin": 1000.0,
+      "liq": 53.35466666666667
+    },
+    "XRP-USD": {
+      "cash": 1000.0,
+      "units": 0.0,
+      "entry": null,
+      "margin": 0.0,
+      "liq": null
+    },
+    "DOGE-USD": {
+      "cash": 1000.0,
+      "units": 0.0,
+      "entry": null,
+      "margin": 0.0,
+      "liq": null
+    },
+    "LINK-USD": {
+      "cash": 0.0,
+      "units": 371.14551083591334,
+      "entry": 8.075,
+      "margin": 1000.0,
+      "liq": 5.517916666666666
+    },
+    "AAPL": {
+      "cash": 0.0,
+      "units": 9.504629996149976,
+      "entry": 315.32000732421875,
+      "margin": 1000.0,
+      "liq": 215.4686716715495
+    },
+    "TSLA": {
+      "cash": 0.0,
+      "units": 7.349911536745929,
+      "entry": 407.760009765625,
+      "margin": 1000.0,
+      "liq": 278.63600667317706
+    },
+    "NVDA": {
+      "cash": 1000.0,
+      "units": 0.0,
+      "entry": null,
+      "margin": 0.0,
+      "liq": null
+    },
+    "SPY": {
+      "cash": 0.0,
+      "units": 3.9697992602696024,
+      "entry": 754.9500122070312,
+      "margin": 1000.0,
+      "liq": 515.8825083414714
+    }
+  },
+  "last_equity": 10000.0,
+  "last_ret": 0.0
+}
