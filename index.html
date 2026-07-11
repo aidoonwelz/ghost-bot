@@ -78,8 +78,12 @@ let PF=null, PRICES={}, prevEq=null;
 
 async function livePrices(){
   await Promise.all(COINS.map(async a=>{
-    try{ const r=await fetch(`https://api.exchange.coinbase.com/products/${a}/ticker`,{cache:"no-store"});
-         if(r.ok){ PRICES[a]=parseFloat((await r.json()).price); } }catch(e){}
+    try{
+      const c=new AbortController(); const t=setTimeout(()=>c.abort(),5000);
+      const r=await fetch(`https://api.exchange.coinbase.com/products/${a}/ticker`,{cache:"no-store",signal:c.signal});
+      clearTimeout(t);
+      if(r.ok){ PRICES[a]=parseFloat((await r.json()).price); }
+    }catch(e){}
   }));
 }
 
@@ -167,12 +171,14 @@ function render(){
 async function loadPF(){
   try{ const r=await fetch("portfolio.json?t="+Date.now(),{cache:"no-store"}); if(r.ok){ PF=await r.json(); } }
   catch(e){}
-  if(!PF){ document.getElementById("app").innerHTML='<div class="loading">Waiting for the bot\\'s first run…</div>'; }
+  if(PF) render();                // paint immediately from portfolio data
+  else document.getElementById("app").innerHTML='<div class="loading">Waiting for the bot\\'s first run…</div>';
 }
 
 async function tick(){ await livePrices(); if(PF) render(); }
 
-(async ()=>{ await loadPF(); await tick(); })();
+// paint first (no waiting on prices), THEN layer live prices on top
+(async ()=>{ await loadPF(); tick(); })();
 setInterval(tick, 8000);       // live prices every 8s
 setInterval(loadPF, 120000);   // re-pull portfolio every 2 min
 </script>
