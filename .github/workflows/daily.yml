@@ -1,0 +1,37 @@
+name: Ghost daily
+
+on:
+  schedule:
+    - cron: "5 13 * * *"     # 13:05 UTC daily (~9am ET). GitHub cron can run a bit late.
+  workflow_dispatch:          # lets us run it manually / on demand
+
+permissions:
+  contents: write             # needed to commit the updated portfolio back
+
+concurrency:
+  group: ghost-daily
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Ghost
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+        run: python ghost.py
+
+      - name: Commit updated portfolio
+        run: |
+          git config user.name "ghost-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "portfolio update $(date -u +%FT%TZ)" || echo "no changes to commit"
+          git push
