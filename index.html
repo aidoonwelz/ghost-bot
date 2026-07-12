@@ -4,183 +4,188 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>👻 GHOST — Terminal</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
-  :root{
-    --bg:#06080d; --panel:#0d131f; --panel2:#0a0f18; --line:#1a2433;
-    --txt:#e8edf7; --dim:#7d8aa3; --green:#16c784; --red:#ea3943; --accent:#5a8bff; --gold:#f0b90b;
-  }
+  :root{ --bg:#06080d; --panel:#0d131f; --panel2:#0a0f18; --line:#1a2433; --txt:#e8edf7;
+         --dim:#7d8aa3; --green:#16c784; --red:#ea3943; --accent:#5a8bff; --gold:#f0b90b; }
   *{ box-sizing:border-box; margin:0; padding:0; }
-  body{ background:
-        radial-gradient(1200px 500px at 80% -10%, rgba(90,139,255,.08), transparent 60%),
-        radial-gradient(900px 500px at -10% 110%, rgba(22,199,132,.06), transparent 60%),
-        var(--bg);
+  body{ background:radial-gradient(1000px 460px at 80% -10%,rgba(90,139,255,.08),transparent 60%),var(--bg);
         color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-        -webkit-font-smoothing:antialiased; padding:16px; max-width:900px; margin:0 auto; min-height:100vh; }
+        -webkit-font-smoothing:antialiased; padding:14px; max-width:960px; margin:0 auto; }
   .mono{ font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; }
-  .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-  .brand{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:19px; letter-spacing:.06em; }
-  .brand small{ color:var(--dim); font-weight:500; letter-spacing:.12em; font-size:10px; }
-  .live{ display:flex; align-items:center; gap:6px; color:var(--green); font-size:11px; font-weight:700; letter-spacing:.1em; }
-  .dot{ width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 10px var(--green); animation:pulse 1.6s infinite; }
-  @keyframes pulse{ 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.82)} }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+  .brand{ display:flex; align-items:center; gap:9px; font-weight:800; font-size:18px; letter-spacing:.05em; }
+  .brand small{ color:var(--dim); font-weight:500; letter-spacing:.11em; font-size:9.5px; }
+  .hdrEq{ text-align:right; }
+  .hdrEq .v{ font-size:22px; font-weight:800; }
+  .hdrEq .r{ font-size:12px; font-weight:700; }
+  .live{ display:inline-flex; align-items:center; gap:6px; color:var(--green); font-size:10px; font-weight:700; letter-spacing:.1em; }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 9px var(--green); animation:pulse 1.6s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
+  .up{ color:var(--green);} .down{ color:var(--red);}
 
-  .hero{ background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--line);
-         border-radius:20px; padding:24px; margin-bottom:14px; position:relative; overflow:hidden; }
-  .heroLabel{ color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.14em; }
-  .equity{ font-size:52px; font-weight:800; letter-spacing:-.02em; line-height:1.05; margin-top:6px;
-           text-shadow:0 0 34px rgba(90,139,255,.25); }
-  .retrow{ display:flex; align-items:center; gap:12px; margin-top:8px; flex-wrap:wrap; }
-  .ret{ font-size:18px; font-weight:800; padding:4px 12px; border-radius:10px; }
-  .chip{ font-size:12px; color:var(--dim); }
-  .up{ color:var(--green); } .down{ color:var(--red); }
-  .upbg{ background:rgba(22,199,132,.13); color:var(--green); }
-  .downbg{ background:rgba(234,57,73,.13); color:var(--red); }
-  svg{ width:100%; height:200px; display:block; margin-top:18px; }
+  .card{ background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--line); border-radius:16px; padding:12px; }
+  .toolbar{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  .tabs{ display:flex; gap:5px; flex-wrap:wrap; }
+  .tab{ background:#0b1220; border:1px solid var(--line); color:var(--dim); font-weight:700; font-size:12px;
+        padding:6px 11px; border-radius:9px; cursor:pointer; transition:.15s; }
+  .tab:hover{ color:var(--txt); }
+  .tab.on{ background:rgba(90,139,255,.16); color:#a9c0ff; border-color:#2b4272; }
+  .tab.tf.on{ background:rgba(22,199,132,.15); color:var(--green); border-color:#1c5b44; }
+  .legend{ font-size:11.5px; color:var(--dim); margin:2px 2px 8px; min-height:16px; display:flex; gap:12px; flex-wrap:wrap; }
+  .legend b{ color:var(--txt); font-weight:700; }
+  #chart{ width:100%; height:380px; }
+  @media(max-width:560px){ #chart{ height:300px; } }
 
-  .stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
-  @media(min-width:620px){ .stats{ grid-template-columns:repeat(6,1fr); } }
-  .stat{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:13px 10px; text-align:center; }
-  .stat .k{ color:var(--dim); font-size:10px; text-transform:uppercase; letter-spacing:.09em; }
-  .stat .v{ font-size:19px; font-weight:800; margin-top:5px; }
+  .stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin:14px 0; }
+  @media(min-width:620px){ .stats{ grid-template-columns:repeat(6,1fr);} }
+  .stat{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 8px; text-align:center; }
+  .stat .k{ color:var(--dim); font-size:9.5px; text-transform:uppercase; letter-spacing:.08em; }
+  .stat .v{ font-size:17px; font-weight:800; margin-top:4px; }
 
-  .sec{ color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.12em; margin:20px 4px 11px;
-        display:flex; justify-content:space-between; }
-  .book{ display:grid; gap:8px; }
-  .row{ background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:12px 15px;
-        display:grid; grid-template-columns:1.2fr 1fr 1fr auto; align-items:center; gap:8px; transition:background .3s; }
-  .row .sym{ font-weight:800; font-size:15px; }
-  .row .sub{ color:var(--dim); font-size:10.5px; margin-top:2px; }
-  .row .price{ text-align:right; font-weight:700; }
-  .row .pnl{ text-align:right; font-weight:800; font-size:14px; }
-  .badge{ font-size:10px; font-weight:800; padding:4px 10px; border-radius:999px; letter-spacing:.05em; justify-self:end; }
-  .bLong{ background:rgba(22,199,132,.16); color:var(--green); }
-  .bFlat{ background:rgba(125,138,163,.14); color:var(--dim); }
-  .flash{ animation:flash .6s; }
-  @keyframes flash{ 0%{background:rgba(90,139,255,.14)} 100%{background:var(--panel)} }
-  .loading{ color:var(--dim); text-align:center; padding:50px; }
-  .foot{ text-align:center; color:var(--dim); font-size:11px; margin:22px 0 6px; }
+  .sec{ color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.11em; margin:16px 4px 10px; }
+  .book{ display:grid; gap:7px; }
+  .row{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 14px;
+        display:grid; grid-template-columns:1.1fr 1fr 1fr auto; align-items:center; gap:8px; }
+  .row .sym{ font-weight:800; font-size:14px; } .row .sub{ color:var(--dim); font-size:10px; margin-top:2px; }
+  .row .price{ text-align:right; font-weight:700; } .row .pnl{ text-align:right; font-weight:800; font-size:13px; }
+  .badge{ font-size:9.5px; font-weight:800; padding:4px 9px; border-radius:999px; justify-self:end; }
+  .bLong{ background:rgba(22,199,132,.16); color:var(--green);} .bFlat{ background:rgba(125,138,163,.14); color:var(--dim);}
+  .foot{ text-align:center; color:var(--dim); font-size:10.5px; margin:18px 0 6px; }
 </style>
 </head>
 <body>
   <div class="topbar">
     <div class="brand">👻 GHOST <small>EMA 9×21 · 3× · PAPER</small></div>
-    <div class="live"><span class="dot"></span> LIVE</div>
+    <div class="hdrEq"><div class="v mono" id="eq">—</div><div class="r mono" id="ret"></div><div class="live"><span class="dot"></span>LIVE</div></div>
   </div>
-  <div id="app"><div class="loading">Booting terminal…</div></div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div class="tabs" id="assetTabs"></div>
+      <div class="tabs" id="tfTabs"></div>
+    </div>
+    <div class="legend" id="legend">loading chart…</div>
+    <div id="chart"></div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+  <div class="sec">Positions</div>
+  <div class="book" id="book"></div>
   <div class="foot" id="foot"></div>
 
 <script>
-const COINS=["BTC-USD","ETH-USD","SOL-USD","XRP-USD","DOGE-USD","LINK-USD"];
+const ASSETS=["BTC-USD","ETH-USD","SOL-USD","XRP-USD","DOGE-USD","LINK-USD"];
+const TF={"15m":900,"1H":3600,"6H":21600,"1D":86400};
 const money=n=>"$"+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-const px=n=>"$"+Number(n).toLocaleString(undefined,{minimumFractionDigits: n<1?4:2,maximumFractionDigits:n<1?4:2});
+const fx=n=>Number(n).toLocaleString(undefined,{minimumFractionDigits:n<1?4:2,maximumFractionDigits:n<1?4:2});
 const short=a=>a.replace("-USD","");
-let PF=null, PRICES={}, prevEq=null;
+let PF=null, PRICES={}, asset="BTC-USD", tf="1H";
 
-async function livePrices(){
-  await Promise.all(COINS.map(async a=>{
-    try{
-      const c=new AbortController(); const t=setTimeout(()=>c.abort(),5000);
-      const r=await fetch(`https://api.exchange.coinbase.com/products/${a}/ticker`,{cache:"no-store",signal:c.signal});
-      clearTimeout(t);
-      if(r.ok){ PRICES[a]=parseFloat((await r.json()).price); }
-    }catch(e){}
-  }));
+/* ---------- CHART ---------- */
+const LWC=window.LightweightCharts;
+const chart=LWC.createChart(document.getElementById("chart"),{
+  layout:{ background:{type:'solid',color:'transparent'}, textColor:'#7d8aa3', fontFamily:'ui-monospace,monospace' },
+  grid:{ vertLines:{color:'rgba(26,36,51,.6)'}, horzLines:{color:'rgba(26,36,51,.6)'} },
+  rightPriceScale:{ borderColor:'#1a2433' },
+  timeScale:{ borderColor:'#1a2433', timeVisible:true, secondsVisible:false },
+  crosshair:{ mode:LWC.CrosshairMode.Normal, vertLine:{color:'#3a4a66',labelBackgroundColor:'#1a2433'}, horzLine:{color:'#3a4a66',labelBackgroundColor:'#1a2433'} },
+});
+const candle=chart.addCandlestickSeries({ upColor:'#16c784',downColor:'#ea3943',borderVisible:false,wickUpColor:'#16c784',wickDownColor:'#ea3943' });
+const e9=chart.addLineSeries({ color:'#5a8bff', lineWidth:2, priceLineVisible:false, lastValueVisible:false });
+const e21=chart.addLineSeries({ color:'#f0b90b', lineWidth:2, priceLineVisible:false, lastValueVisible:false });
+const vol=chart.addHistogramSeries({ priceScaleId:'vol', priceLineVisible:false, lastValueVisible:false });
+chart.priceScale('vol').applyOptions({ scaleMargins:{top:0.82,bottom:0} });
+new ResizeObserver(()=>chart.applyOptions({width:document.getElementById("chart").clientWidth})).observe(document.getElementById("chart"));
+let entryLines=[];
+
+function ema(vals,n){ const k=2/(n+1); let e=vals[0]; return vals.map((v,i)=>{ e=i?v*k+e*(1-k):v; return e; }); }
+
+async function loadChart(){
+  document.getElementById("legend").textContent="loading "+short(asset)+" · "+tf+"…";
+  try{
+    const r=await fetch(`https://api.exchange.coinbase.com/products/${asset}/candles?granularity=${TF[tf]}`,{cache:"no-store"});
+    let raw=await r.json(); raw.sort((a,b)=>a[0]-b[0]);          // [time,low,high,open,close,vol]
+    const bars=raw.map(c=>({time:c[0],open:c[3],high:c[2],low:c[1],close:c[4],volume:c[5]}));
+    candle.setData(bars.map(b=>({time:b.time,open:b.open,high:b.high,low:b.low,close:b.close})));
+    vol.setData(bars.map(b=>({time:b.time,value:b.volume,color:b.close>=b.open?'rgba(22,199,132,.35)':'rgba(234,57,73,.35)'})));
+    const closes=bars.map(b=>b.close), a9=ema(closes,9), a21=ema(closes,21);
+    e9.setData(bars.map((b,i)=>({time:b.time,value:a9[i]})));
+    e21.setData(bars.map((b,i)=>({time:b.time,value:a21[i]})));
+    // entry + liq lines for this asset if the bot is long
+    entryLines.forEach(l=>candle.removePriceLine(l)); entryLines=[];
+    if(PF && PF.pos[asset] && PF.pos[asset].units>0){ const p=PF.pos[asset];
+      entryLines.push(candle.createPriceLine({price:p.entry,color:'#16c784',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'entry'}));
+      entryLines.push(candle.createPriceLine({price:p.liq,color:'#ea3943',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'liq'}));
+    }
+    chart.timeScale().fitContent();
+    setLegend(bars[bars.length-1],a9[a9.length-1],a21[a21.length-1]);
+  }catch(e){ document.getElementById("legend").innerHTML='⚠️ price feed blocked by browser — try refresh. ('+e+')'; }
+}
+function setLegend(b,v9,v21){
+  if(!b) return;
+  const up=b.close>=b.open;
+  document.getElementById("legend").innerHTML=
+    `<span><b>${short(asset)}</b> ${tf}</span>`+
+    `<span>O <b>${fx(b.open)}</b></span><span>H <b>${fx(b.high)}</b></span><span>L <b>${fx(b.low)}</b></span>`+
+    `<span class="${up?'up':'down'}">C <b>${fx(b.close)}</b></span>`+
+    `<span style="color:#5a8bff">EMA9 ${fx(v9)}</span><span style="color:#f0b90b">EMA21 ${fx(v21)}</span>`;
+}
+chart.subscribeCrosshairMove(p=>{
+  if(!p.time||!p.seriesData) return;
+  const c=p.seriesData.get(candle), a=p.seriesData.get(e9), b=p.seriesData.get(e21);
+  if(c) setLegend({open:c.open,high:c.high,low:c.low,close:c.close}, a?a.value:0, b?b.value:0);
+});
+
+/* ---------- TABS ---------- */
+function buildTabs(){
+  document.getElementById("assetTabs").innerHTML=ASSETS.map(a=>`<div class="tab ${a===asset?'on':''}" data-a="${a}">${short(a)}</div>`).join("");
+  document.getElementById("tfTabs").innerHTML=Object.keys(TF).map(t=>`<div class="tab tf ${t===tf?'on':''}" data-t="${t}">${t}</div>`).join("");
+  document.querySelectorAll("[data-a]").forEach(el=>el.onclick=()=>{ asset=el.dataset.a; buildTabs(); loadChart(); });
+  document.querySelectorAll("[data-t]").forEach(el=>el.onclick=()=>{ tf=el.dataset.t; buildTabs(); loadChart(); });
 }
 
-function valueOf(a,p){
-  const live = PRICES[a];
-  if(p.units>0){ const pr = live ?? p.entry; return {val:Math.max(0,p.margin+p.units*(pr-p.entry)), price:pr, live:!!live}; }
-  return {val:p.cash, price:live ?? null, live:!!live};
+/* ---------- PORTFOLIO ---------- */
+async function livePrices(){ await Promise.all(ASSETS.map(async a=>{ try{
+  const c=new AbortController(); const t=setTimeout(()=>c.abort(),5000);
+  const r=await fetch(`https://api.exchange.coinbase.com/products/${a}/ticker`,{cache:"no-store",signal:c.signal}); clearTimeout(t);
+  if(r.ok) PRICES[a]=parseFloat((await r.json()).price);
+}catch(e){} })); }
+
+function valueOf(a,p){ const live=PRICES[a];
+  if(p.units>0){ const pr=live??p.entry; return {val:Math.max(0,p.margin+p.units*(pr-p.entry)),price:pr}; }
+  return {val:p.cash,price:live??null}; }
+
+function renderPortfolio(){
+  if(!PF) return;
+  let eq=0; Object.entries(PF.pos).forEach(([a,p])=>eq+=valueOf(a,p).val);
+  const ret=(eq/PF.start-1)*100, up=ret>=0, open=Object.values(PF.pos).filter(p=>p.units>0).length;
+  document.getElementById("eq").textContent=money(eq);
+  document.getElementById("ret").innerHTML=`<span class="${up?'up':'down'}">${up?'▲':'▼'} ${ret.toFixed(2)}%</span>`;
+  document.getElementById("stats").innerHTML=`
+    <div class="stat"><div class="k">Return</div><div class="v mono ${up?'up':'down'}">${ret.toFixed(1)}%</div></div>
+    <div class="stat"><div class="k">Realized</div><div class="v mono ${(PF.realized||0)>=0?'up':'down'}">${money(PF.realized||0)}</div></div>
+    <div class="stat"><div class="k">Open</div><div class="v mono">${open}</div></div>
+    <div class="stat"><div class="k">Trades</div><div class="v mono">${PF.trades||0}</div></div>
+    <div class="stat"><div class="k">Liq</div><div class="v mono ${(PF.liquidations||0)>0?'down':''}">${PF.liquidations||0}</div></div>
+    <div class="stat"><div class="k">Lev</div><div class="v mono" style="color:var(--gold)">3×</div></div>`;
+  document.getElementById("book").innerHTML=Object.entries(PF.pos).map(([a,p])=>{
+    const L=p.units>0, info=valueOf(a,p), pnl=L?info.val-p.margin:0, pct=L?pnl/p.margin*100:0;
+    return `<div class="row"><div><div class="sym">${short(a)}</div><div class="sub">${L?('entry '+fx(p.entry)):'in cash'}</div></div>
+      <div class="price mono">${info.price?'$'+fx(info.price):'—'}</div>
+      <div class="pnl mono ${pnl>=0?'up':'down'}">${L?((pnl>=0?'+':'')+money(pnl)+' ('+(pct>=0?'+':'')+pct.toFixed(1)+'%)'):'—'}</div>
+      <span class="badge ${L?'bLong':'bFlat'}">${L?'LONG':'CASH'}</span></div>`; }).join("");
+  const last=PF.history&&PF.history.length?PF.history[PF.history.length-1].t:null;
+  document.getElementById("foot").textContent=(last?("daily snapshot "+last.replace("T"," ")+" UTC · "):"")+"prices & chart live · paper money";
 }
 
-function equityNow(pf){
-  let eq=0; for(const [a,p] of Object.entries(pf.pos)) eq+=valueOf(a,p).val; return eq;
-}
+async function loadPF(){ try{ const r=await fetch("portfolio.json?t="+Date.now(),{cache:"no-store"}); if(r.ok) PF=await r.json(); }catch(e){} }
 
-function sparkline(history, liveEq){
-  const pts=(history||[]).map(h=>h.equity);
-  if(liveEq!=null) pts.push(liveEq);
-  if(pts.length<2) return '<svg viewBox="0 0 800 200"></svg>';
-  const W=800,H=200,P=10,min=Math.min(...pts),max=Math.max(...pts),span=(max-min)||1;
-  const X=i=>P+(i/(pts.length-1))*(W-2*P), Y=v=>P+(1-(v-min)/span)*(H-2*P);
-  let d=""; pts.forEach((v,i)=>d+=(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)+" ");
-  const area=d+`L${X(pts.length-1)} ${H-P} L${X(0)} ${H-P} Z`;
-  const up=pts[pts.length-1]>=pts[0], col=up?"#16c784":"#ea3943", by=Y(PF.start);
-  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <defs>
-      <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${col}" stop-opacity=".32"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/>
-      </linearGradient>
-      <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    </defs>
-    <line x1="${P}" y1="${by}" x2="${W-P}" y2="${by}" stroke="#243044" stroke-width="1" stroke-dasharray="5 5"/>
-    <path d="${area}" fill="url(#g)"/>
-    <path d="${d}" fill="none" stroke="${col}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" filter="url(#glow)"/>
-  </svg>`;
-}
-
-function render(){
-  const pf=PF, liveEq=equityNow(pf), ret=(liveEq/pf.start-1)*100, up=ret>=0;
-  const open=Object.values(pf.pos).filter(p=>p.units>0).length;
-  const dayEq=pf.last_equity??pf.start, dayDelta=liveEq-dayEq;
-
-  const rows=Object.entries(pf.pos).map(([a,p])=>{
-    const isLong=p.units>0, info=valueOf(a,p);
-    const pnl = isLong ? (info.val - p.margin) : 0;
-    const pnlPct = isLong ? (pnl/p.margin*100) : 0;
-    const liveTag = info.live ? '' : '<span style="color:var(--dim)"> ·</span>';
-    return `<div class="row" data-sym="${a}">
-      <div><div class="sym">${short(a)}${liveTag}</div><div class="sub">${isLong?('entry '+px(p.entry)+' · liq '+px(p.liq)):'in cash'}</div></div>
-      <div class="price mono">${info.price?px(info.price):'—'}</div>
-      <div class="pnl mono ${pnl>=0?'up':'down'}">${isLong?((pnl>=0?'+':'')+money(pnl).replace('$','$')+' ('+(pnlPct>=0?'+':'')+pnlPct.toFixed(1)+'%)'):'—'}</div>
-      <span class="badge ${isLong?'bLong':'bFlat'}">${isLong?'LONG':'CASH'}</span>
-    </div>`;
-  }).join("");
-
-  document.getElementById("app").innerHTML=`
-    <div class="hero">
-      <div class="heroLabel">Total Equity</div>
-      <div class="equity mono">${money(liveEq)}</div>
-      <div class="retrow">
-        <span class="ret ${up?'upbg':'downbg'} mono">${up?'▲':'▼'} ${ret.toFixed(2)}%</span>
-        <span class="chip mono">today ${dayDelta>=0?'+':''}${money(dayDelta)}</span>
-        <span class="chip">start ${money(pf.start)}</span>
-      </div>
-      ${sparkline(pf.history, liveEq)}
-    </div>
-    <div class="stats">
-      <div class="stat"><div class="k">Return</div><div class="v mono ${up?'up':'down'}">${ret.toFixed(1)}%</div></div>
-      <div class="stat"><div class="k">Realized</div><div class="v mono ${(pf.realized||0)>=0?'up':'down'}">${money(pf.realized||0)}</div></div>
-      <div class="stat"><div class="k">Open</div><div class="v mono">${open}</div></div>
-      <div class="stat"><div class="k">Trades</div><div class="v mono">${pf.trades||0}</div></div>
-      <div class="stat"><div class="k">Liq</div><div class="v mono ${(pf.liquidations||0)>0?'down':''}">${pf.liquidations||0}</div></div>
-      <div class="stat"><div class="k">Lev</div><div class="v mono" style="color:var(--gold)">3×</div></div>
-    </div>
-    <div class="sec"><span>Positions</span><span>live P&amp;L</span></div>
-    <div class="book">${rows}</div>`;
-
-  const last=pf.history&&pf.history.length?pf.history[pf.history.length-1].t:null;
-  document.getElementById("foot").textContent=(last?("daily snapshot "+last.replace("T"," ")+" UTC · "):"")+"prices live · paper money";
-
-  if(prevEq!=null && Math.abs(liveEq-prevEq)>0.005){
-    document.querySelectorAll(".row").forEach(r=>{ r.classList.remove("flash"); void r.offsetWidth; r.classList.add("flash"); });
-  }
-  prevEq=liveEq;
-}
-
-async function loadPF(){
-  try{ const r=await fetch("portfolio.json?t="+Date.now(),{cache:"no-store"}); if(r.ok){ PF=await r.json(); } }
-  catch(e){}
-  if(PF) render();                // paint immediately from portfolio data
-  else document.getElementById("app").innerHTML=`<div class="loading">Waiting for the bot's first run…</div>`;
-}
-
-async function tick(){ await livePrices(); if(PF) render(); }
-
-// paint first (no waiting on prices), THEN layer live prices on top
-(async ()=>{ await loadPF(); tick(); })();
-setInterval(tick, 8000);       // live prices every 8s
-setInterval(loadPF, 120000);   // re-pull portfolio every 2 min
+/* ---------- BOOT ---------- */
+(async()=>{ buildTabs(); await loadPF(); await loadChart(); await livePrices(); renderPortfolio(); })();
+setInterval(async()=>{ await livePrices(); renderPortfolio(); }, 8000);
+setInterval(loadChart, 30000);
+setInterval(loadPF, 120000);
 </script>
 </body>
 </html>
