@@ -200,7 +200,7 @@ function renderPortfolio(){
     cell("Realized",money(PF.realized||0),(PF.realized||0)>=0?'up':'down')+
     cell("Open",open)+cell("Trades",PF.trades||0)+
     cell("Liq",PF.liquidations||0,(PF.liquidations||0)>0?'down':'')+
-    `<div class="cell"><span class="lbl">Leverage</span><div class="v mono" style="color:var(--amber)">3×</div></div>`;
+    `<div class="cell"><span class="lbl">Leverage</span><div class="v mono" style="color:var(--amber)">${PF.leverage||2}×</div></div>`;
   document.getElementById("book").innerHTML=Object.entries(PF.pos).map(([a,p])=>{
     const L=p.units>0, info=valueOf(a,p), pnl=L?info.val-p.margin:0, pct=L?pnl/p.margin*100:0;
     return `<div class="trow ${L?'long':''}"><div><div class="sym">${short(a)}</div><div class="sub">${L?('entry '+fx(p.entry)+' · liq '+fx(p.liq)):'—'}</div></div>
