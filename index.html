@@ -36,15 +36,19 @@
   .acct{ display:flex; align-items:baseline; gap:14px; }
   .acct .eq{ font-size:26px; font-weight:700; }
   .acct .chg{ font-size:13px; font-weight:700; }
-  .live{ display:inline-flex; align-items:center; gap:6px; font-size:9.5px; font-weight:700; letter-spacing:.14em; color:var(--up); }
+  .live{ display:inline-flex; align-items:center; gap:6px; min-height:44px; font-size:9.5px; font-weight:700; letter-spacing:.14em; color:var(--up); }
+  .live.stale{ color:var(--amber); }
+  .live.offline{ color:var(--down); }
   .dot{ width:6px; height:6px; border-radius:50%; background:var(--up); box-shadow:0 0 8px var(--up); animation:blink 1.7s infinite; }
+  .stale .dot{ background:var(--amber); box-shadow:none; animation:none; }
+  .offline .dot{ background:var(--down); box-shadow:none; animation:none; }
   @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.3} }
 
   /* ---- CHART PANEL ---- */
   .panel{ border:1px solid var(--edge); border-radius:8px; background:var(--panel); overflow:hidden; }
   .ptop{ display:flex; align-items:center; justify-content:space-between; padding:9px 11px; border-bottom:1px solid var(--edge2); gap:8px; flex-wrap:wrap; }
   .seg{ display:inline-flex; border:1px solid var(--edge); border-radius:6px; overflow:hidden; }
-  .seg .b{ font-size:11px; font-weight:600; color:var(--mute); padding:5px 10px; cursor:pointer; background:transparent;
+  .seg .b{ min-height:44px; font-size:11px; font-weight:600; color:var(--mute); padding:5px 12px; cursor:pointer; background:transparent;
            border-right:1px solid var(--edge2); transition:.12s; }
   .seg .b:last-child{ border-right:0; }
   .seg .b:hover{ color:var(--ink2); }
@@ -77,6 +81,9 @@
   .trow .st{ font-size:10px; font-weight:700; letter-spacing:.08em; text-align:right; }
   .st.on{ color:var(--up); } .st.off{ color:var(--mute); }
   .foot{ color:var(--mute); font-size:10px; margin:16px 2px; letter-spacing:.02em; }
+  .feed-note{ color:var(--amber); }
+  button:focus-visible{ outline:2px solid #4c7fff; outline-offset:-2px; }
+  @media(prefers-reduced-motion:reduce){ .dot{ animation:none; } }
 </style>
 </head>
 <body>
@@ -88,7 +95,7 @@
       <div><span class="lbl">Equity</span></div>
       <div class="eq mono" id="eq">—</div>
       <div class="chg mono" id="ret"></div>
-      <div class="live"><span class="dot"></span>LIVE</div>
+      <div class="live offline" id="syncState" role="status" aria-live="polite"><span class="dot"></span><span id="syncText">LOADING</span></div>
     </div>
   </header>
 
@@ -112,30 +119,46 @@ const TF={"15m":900,"1H":3600,"6H":21600,"1D":86400};
 const money=n=>"$"+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const fx=n=>Number(n).toLocaleString(undefined,{minimumFractionDigits:n<1?4:2,maximumFractionDigits:n<1?4:2});
 const short=a=>a.replace("-USD","");
-let PF=null, PRICES={}, CHG={}, asset="BTC-USD", tf="1H";
+let PF=null, PRICES={}, CHG={}, asset="BTC-USD", tf="1H", chart=null, candle=null, e9=null, e21=null, vol=null;
 
 /* ===== CHART ===== */
-const LWC=window.LightweightCharts;
-const chart=LWC.createChart(document.getElementById("chart"),{
-  layout:{ background:{type:'solid',color:'transparent'}, textColor:'#67707f', fontFamily:'ui-monospace,monospace', fontSize:11 },
-  grid:{ vertLines:{color:'#111621'}, horzLines:{color:'#111621'} },
-  rightPriceScale:{ borderColor:'#1b2130' },
-  timeScale:{ borderColor:'#1b2130', timeVisible:true, secondsVisible:false },
-  crosshair:{ mode:LWC.CrosshairMode.Normal, vertLine:{color:'#38445c',labelBackgroundColor:'#151b28'}, horzLine:{color:'#38445c',labelBackgroundColor:'#151b28'} },
-});
-const candle=chart.addCandlestickSeries({ upColor:'#26d07c',downColor:'#f6465d',borderVisible:false,wickUpColor:'#26d07c',wickDownColor:'#f6465d' });
-const e9=chart.addLineSeries({ color:'#4c7fff', lineWidth:1, priceLineVisible:false, lastValueVisible:false });
-const e21=chart.addLineSeries({ color:'#e0a417', lineWidth:1, priceLineVisible:false, lastValueVisible:false });
-const vol=chart.addHistogramSeries({ priceScaleId:'vol', priceLineVisible:false, lastValueVisible:false });
-chart.priceScale('vol').applyOptions({ scaleMargins:{top:0.85,bottom:0} });
-new ResizeObserver(()=>chart.applyOptions({width:document.getElementById("chart").clientWidth})).observe(document.getElementById("chart"));
 let entryLines=[];
 function ema(v,n){ const k=2/(n+1); let e=v[0]; return v.map((x,i)=>{ e=i?x*k+e*(1-k):x; return e; }); }
 
+function initChart(){
+  const LWC=window.LightweightCharts;
+  if(!LWC){
+    document.getElementById("chart").style.display="none";
+    document.getElementById("legend").innerHTML='<span class="feed-note">Chart library unavailable. Portfolio data is still shown below.</span>';
+    return false;
+  }
+  chart=LWC.createChart(document.getElementById("chart"),{
+    layout:{ background:{type:'solid',color:'transparent'}, textColor:'#8893a5', fontFamily:'ui-monospace,monospace', fontSize:11 },
+    grid:{ vertLines:{color:'#111621'}, horzLines:{color:'#111621'} },
+    rightPriceScale:{ borderColor:'#1b2130' },
+    timeScale:{ borderColor:'#1b2130', timeVisible:true, secondsVisible:false },
+    crosshair:{ mode:LWC.CrosshairMode.Normal, vertLine:{color:'#38445c',labelBackgroundColor:'#151b28'}, horzLine:{color:'#38445c',labelBackgroundColor:'#151b28'} },
+  });
+  candle=chart.addCandlestickSeries({ upColor:'#26d07c',downColor:'#f6465d',borderVisible:false,wickUpColor:'#26d07c',wickDownColor:'#f6465d' });
+  e9=chart.addLineSeries({ color:'#4c7fff', lineWidth:1, priceLineVisible:false, lastValueVisible:false });
+  e21=chart.addLineSeries({ color:'#e0a417', lineWidth:1, priceLineVisible:false, lastValueVisible:false });
+  vol=chart.addHistogramSeries({ priceScaleId:'vol', priceLineVisible:false, lastValueVisible:false });
+  chart.priceScale('vol').applyOptions({ scaleMargins:{top:0.85,bottom:0} });
+  new ResizeObserver(()=>chart&&chart.applyOptions({width:document.getElementById("chart").clientWidth})).observe(document.getElementById("chart"));
+  chart.subscribeCrosshairMove(p=>{ if(!p.time||!p.seriesData) return;
+    const c=p.seriesData.get(candle),a=p.seriesData.get(e9),b=p.seriesData.get(e21);
+    if(c) setLegend({open:c.open,high:c.high,low:c.low,close:c.close}, a?a.value:0, b?b.value:0); });
+  return true;
+}
+
 async function loadChart(){
+  if(!chart) return;
   document.getElementById("legend").textContent="loading "+short(asset)+" · "+tf+"…";
   try{
-    const r=await fetch(`https://api.exchange.coinbase.com/products/${asset}/candles?granularity=${TF[tf]}`,{cache:"no-store"});
+    const ctl=new AbortController(); const timeout=setTimeout(()=>ctl.abort(),8000);
+    const r=await fetch(`https://api.exchange.coinbase.com/products/${asset}/candles?granularity=${TF[tf]}`,{cache:"no-store",signal:ctl.signal});
+    clearTimeout(timeout);
+    if(!r.ok) throw new Error(`price feed ${r.status}`);
     let raw=await r.json(); raw.sort((a,b)=>a[0]-b[0]);
     const bars=raw.map(c=>({time:c[0],open:c[3],high:c[2],low:c[1],close:c[4],volume:c[5]}));
     candle.setData(bars.map(b=>({time:b.time,open:b.open,high:b.high,low:b.low,close:b.close})));
@@ -149,7 +172,7 @@ async function loadChart(){
       entryLines.push(candle.createPriceLine({price:p.liq,color:'#f6465d',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'liq'})); }
     chart.timeScale().fitContent();
     setLegend(bars[bars.length-1],a9[a9.length-1],a21[a21.length-1]);
-  }catch(e){ document.getElementById("legend").innerHTML='price feed blocked by browser — refresh'; }
+  }catch(e){ document.getElementById("legend").innerHTML='<span class="feed-note">Live chart feed unavailable. Saved portfolio data remains available below.</span>'; }
 }
 function setLegend(b,v9,v21){ if(!b) return; const up=b.close>=b.open;
   document.getElementById("legend").innerHTML=
@@ -157,10 +180,6 @@ function setLegend(b,v9,v21){ if(!b) return; const up=b.close>=b.open;
     `<span>O <b>${fx(b.open)}</b></span><span>H <b>${fx(b.high)}</b></span><span>L <b>${fx(b.low)}</b></span>`+
     `<span class="${up?'up':'down'}">C <b>${fx(b.close)}</b></span>`+
     `<span style="color:#4c7fff">EMA9 ${fx(v9)}</span><span style="color:#e0a417">EMA21 ${fx(v21)}</span>`; }
-chart.subscribeCrosshairMove(p=>{ if(!p.time||!p.seriesData) return;
-  const c=p.seriesData.get(candle),a=p.seriesData.get(e9),b=p.seriesData.get(e21);
-  if(c) setLegend({open:c.open,high:c.high,low:c.low,close:c.close}, a?a.value:0, b?b.value:0); });
-
 /* ===== TABS ===== */
 function buildTabs(){
   document.getElementById("assetTabs").innerHTML=ASSETS.map(a=>`<button class="b ${a===asset?'on':''}" data-a="${a}">${short(a)}</button>`).join("");
@@ -176,7 +195,7 @@ async function livePrices(){ await Promise.all(ASSETS.map(async a=>{ try{
   if(r.ok){ const s=await r.json(); PRICES[a]=parseFloat(s.last); CHG[a]=(parseFloat(s.last)/parseFloat(s.open)-1)*100; }
 }catch(e){} })); }
 
-function valueOf(a,p){ const live=PRICES[a];
+function valueOf(a,p){ const live=PRICES[a]??p.last_price;
   if(p.units>0){ const pr=live??p.entry; return {val:Math.max(0,p.margin+p.units*(pr-p.entry)),price:pr}; }
   return {val:p.cash,price:live??null}; }
 
@@ -207,15 +226,29 @@ function renderPortfolio(){
       <div class="r mono">${info.price?'$'+fx(info.price):'—'}</div>
       <div class="r mono ${pnl>=0?'up':'down'}">${L?((pnl>=0?'+':'')+money(pnl)+'  '+(pct>=0?'+':'')+pct.toFixed(1)+'%'):'—'}</div>
       <div class="st ${L?'on':'off'}">${L?'LONG':'CASH'}</div></div>`; }).join("");
-  const last=PF.history&&PF.history.length?PF.history[PF.history.length-1].t:null;
-  document.getElementById("foot").textContent=(last?("daily snapshot "+last.replace("T"," ")+" UTC · "):"")+"live prices · paper account";
+  const last=PF.updated_at||(PF.history&&PF.history.length?PF.history[PF.history.length-1].t:null);
+  const age=last?Date.now()-Date.parse(last.endsWith&&last.endsWith("Z")?last:last+"Z"):Infinity;
+  const state=document.getElementById("syncState"), label=document.getElementById("syncText");
+  state.className="live "+(age<36*3600000?"":"stale"); label.textContent=age<36*3600000?"SYNCED":"STALE";
+  const stamp=last?new Date(last.endsWith&&last.endsWith("Z")?last:last+"Z").toLocaleString():"unknown";
+  document.getElementById("foot").textContent=`last portfolio sync ${stamp} · saved prices · paper account`;
 }
 
-async function loadPF(){ try{ const r=await fetch("portfolio.json?t="+Date.now(),{cache:"no-store"}); if(r.ok) PF=await r.json(); }catch(e){} }
+async function loadPF(){
+  try{
+    const r=await fetch("portfolio.json?t="+Date.now(),{cache:"no-store"});
+    if(!r.ok) throw new Error(`portfolio ${r.status}`);
+    PF=await r.json(); renderPortfolio();
+  }catch(e){
+    const state=document.getElementById("syncState"); state.className="live offline";
+    document.getElementById("syncText").textContent="OFFLINE";
+    document.getElementById("foot").textContent="Portfolio data could not be loaded. Refresh to retry.";
+  }
+}
 
-(async()=>{ buildTabs(); await loadPF(); await loadChart(); await livePrices(); renderPortfolio(); })();
+(async()=>{ buildTabs(); await loadPF(); if(initChart()) loadChart(); livePrices().then(renderPortfolio); })();
 setInterval(async()=>{ await livePrices(); renderPortfolio(); }, 9000);
-setInterval(loadChart, 30000);
+setInterval(()=>{ if(chart) loadChart(); }, 30000);
 setInterval(loadPF, 120000);
 </script>
 </body>
