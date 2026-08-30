@@ -1,83 +1,20 @@
 {
   "start": 10000.0,
-  "realized": -108.0974671216557,
-  "trades": 6,
+  "realized": 0.0,
+  "trades": 0,
   "liquidations": 0,
-  "last_equity": 9891.9,
-  "last_ret": -1.08,
-  "last_ts": "19:13:21 UTC",
+  "leverage": 3.0,
+  "history": [],
   "pos": {
-    "BTC-USD": {
-      "cash": 1653.175915530968,
-      "units": 0.0,
-      "entry": null,
-      "margin": 0.0,
-      "liq": null
-    },
-    "ETH-USD": {
-      "cash": 1647.513478517184,
-      "units": 0.0,
-      "entry": null,
-      "margin": 0.0,
-      "liq": null
-    },
-    "SOL-USD": {
-      "cash": 1649.6007389247316,
-      "units": 0.0,
-      "entry": null,
-      "margin": 0.0,
-      "liq": null
-    },
-    "XRP-USD": {
-      "cash": 1646.4178109769018,
-      "units": 0.0,
-      "entry": null,
-      "margin": 0.0,
-      "liq": null
-    },
-    "DOGE-USD": {
-      "cash": 1658.3586541513628,
-      "units": 0.0,
-      "entry": null,
-      "margin": 0.0,
-      "liq": null
-    },
-    "LINK-USD": {
-      "cash": 1636.8359347771966,
-      "units": 0.0,
-      "entry": null,
-      "margin": 0.0,
-      "liq": null
-    }
-  },
-  "leverage": 2.0,
-  "guard": {
-    "BTC-USD": {
-      "p": 61855.28,
-      "t": 1783966555.999991
-    },
-    "ETH-USD": {
-      "p": 1751.67,
-      "t": 1783966556.237758
-    },
-    "SOL-USD": {
-      "p": 74.51,
-      "t": 1783966556.337769
-    },
-    "XRP-USD": {
-      "p": 1.0586,
-      "t": 1783966556.581988
-    },
-    "DOGE-USD": {
-      "p": 0.07088,
-      "t": 1783966556.799263
-    },
-    "LINK-USD": {
-      "p": 7.793,
-      "t": 1783966557.024052
-    }
-  },
-  "last_brief": "2026-07-13",
-  "peak": 10028.33,
-  "halted": true
+    "BTC-USD": { "cash": 1000.0, "units": 0.0, "entry": null, "margin": 0.0, "liq": null },
+    "ETH-USD": { "cash": 1000.0, "units": 0.0, "entry": null, "margin": 0.0, "liq": null },
+    "SOL-USD": { "cash": 1000.0, "units": 0.0, "entry": null, "margin": 0.0, "liq": null },
+    "XRP-USD": { "cash": 1000.0, "units": 0.0, "entry": null, "margin": 0.0, "liq": null },
+    "DOGE-USD": { "cash": 1000.0, "units": 0.0, "entry": null, "margin": 0.0, "liq": null },
+    "LINK-USD": { "cash": 1000.0, "units": 0.0, "entry": null, "margin": 0.0, "liq": null },
+    "AAPL": { "cash": 1000.0, "units": 0.0, "entry": null, "margin": 0.0, "liq": null },
+    "TSLA": { "cash": 1000.0, "units": 0.0, "entry": null, "margin": 0.0, "liq": null },
+    "NVDA": { "cash": 1000.0, "units": 0.0, "entry": null, "margin": 0.0, "liq": null },
+    "SPY": { "cash": 1000.0, "units": 0.0, "entry": null, "margin": 0.0, "liq": null }
+  }
 }

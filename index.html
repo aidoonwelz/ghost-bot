@@ -84,6 +84,12 @@
   .feed-note{ color:var(--amber); }
   button:focus-visible{ outline:2px solid #4c7fff; outline-offset:-2px; }
   @media(prefers-reduced-motion:reduce){ .dot{ animation:none; } }
+
+  /* ---- BOT SELECTOR ---- */
+  .botbar{ display:flex; align-items:center; gap:10px; margin:0 2px 12px; flex-wrap:wrap; }
+  .botbar .seg .b{ padding:6px 13px; }
+  .botbar .note{ font-size:10px; color:var(--mute); }
+  .halt{ color:var(--down); font-weight:700; }
 </style>
 </head>
 <body>
@@ -98,6 +104,11 @@
       <div class="live offline" id="syncState" role="status" aria-live="polite"><span class="dot"></span><span id="syncText">LOADING</span></div>
     </div>
   </header>
+
+  <div class="botbar">
+    <div class="seg" id="botTabs"></div>
+    <div class="note" id="botNote"></div>
+  </div>
 
   <div class="panel">
     <div class="ptop">
@@ -114,7 +125,17 @@
   <div class="foot mono" id="foot"></div>
 
 <script>
-const ASSETS=["BTC-USD","ETH-USD","SOL-USD","XRP-USD","DOGE-USD","LINK-USD"];
+/* Each bot keeps its own state file. They used to share portfolio.json and
+   overwrite each other, so the dashboard showed whichever wrote last. */
+const BOTS={
+  intraday:{label:"INTRADAY", file:"intraday.json", note:"EMA 9×21 intraday · 2× · crypto"},
+  daily:   {label:"DAILY",    file:"portfolio.json",note:"EMA 9×21 daily · 3× · crypto + stocks"},
+  options: {label:"OPTIONS",  file:"options.json",  note:"weekly ATM BTC calls · long premium"},
+  ema:     {label:"EMA",      file:"ema.json",      note:"EMA 9×21 · 3× · not currently running"},
+};
+let bot="intraday";
+const ALL_ASSETS=["BTC-USD","ETH-USD","SOL-USD","XRP-USD","DOGE-USD","LINK-USD"];
+let ASSETS=ALL_ASSETS.slice();
 const TF={"15m":900,"1H":3600,"6H":21600,"1D":86400};
 const money=n=>"$"+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const fx=n=>Number(n).toLocaleString(undefined,{minimumFractionDigits:n<1?4:2,maximumFractionDigits:n<1?4:2});
@@ -182,10 +203,23 @@ function setLegend(b,v9,v21){ if(!b) return; const up=b.close>=b.open;
     `<span style="color:#4c7fff">EMA9 ${fx(v9)}</span><span style="color:#e0a417">EMA21 ${fx(v21)}</span>`; }
 /* ===== TABS ===== */
 function buildTabs(){
+  document.getElementById("botTabs").innerHTML=Object.entries(BOTS)
+    .map(([k,v])=>`<button class="b ${k===bot?'on':''}" data-bot="${k}">${v.label}</button>`).join("");
+  document.getElementById("botNote").innerHTML=BOTS[bot].note+(PF&&PF.halted?' · <span class="halt">HALTED</span>':'');
   document.getElementById("assetTabs").innerHTML=ASSETS.map(a=>`<button class="b ${a===asset?'on':''}" data-a="${a}">${short(a)}</button>`).join("");
   document.getElementById("tfTabs").innerHTML=Object.keys(TF).map(t=>`<button class="b ${t===tf?'on':''}" data-t="${t}">${t}</button>`).join("");
   document.querySelectorAll("[data-a]").forEach(el=>el.onclick=()=>{asset=el.dataset.a;buildTabs();loadChart();});
   document.querySelectorAll("[data-t]").forEach(el=>el.onclick=()=>{tf=el.dataset.t;buildTabs();loadChart();});
+  document.querySelectorAll("[data-bot]").forEach(el=>el.onclick=async()=>{
+    bot=el.dataset.bot; PF=null; await loadPF(); buildTabs(); renderPortfolio();
+    if(chart) loadChart(); });   // chart init can fail; loadPF already re-rendered the rest
+}
+
+/* Only chart what Coinbase can serve — the daily bot also holds stocks. */
+function syncAssets(){
+  const held=PF&&PF.pos?Object.keys(PF.pos).filter(a=>a.endsWith("-USD")):[];
+  ASSETS=held.length?held:ALL_ASSETS.slice();
+  if(!ASSETS.includes(asset)) asset=ASSETS[0];
 }
 
 /* ===== LIVE DATA (Coinbase /stats gives last + 24h open) ===== */
@@ -206,9 +240,38 @@ function renderTicker(){
       `<span class="c mono ${cls}">${ch!=null?((ch>=0?'+':'')+ch.toFixed(2)+'%'):''}</span></div>`; }).join("");
 }
 
+/* The options bot has no positions book — it holds at most one call at a time,
+   so it gets its own stat set and a single contract row. */
+function renderOptions(){
+  const openPos=PF.open, cash=PF.cash||0;
+  const eq=cash+(openPos?openPos.cost:0);   // last known mark; the bot revalues hourly
+  const ret=(eq/10000-1)*100, up=ret>=0;
+  document.getElementById("eq").textContent=money(eq);
+  document.getElementById("ret").innerHTML=`<span class="${up?'up':'down'}">${up?'▲':'▼'} ${Math.abs(ret).toFixed(2)}%</span>`;
+  const cell=(k,v,cls="")=>`<div class="cell"><span class="lbl">${k}</span><div class="v mono ${cls}">${v}</div></div>`;
+  const wr=PF.trades?Math.round(PF.wins/PF.trades*100):0;
+  document.getElementById("stats").innerHTML=
+    cell("Return",ret.toFixed(1)+"%",up?'up':'down')+
+    cell("Realized",money(PF.realized||0),(PF.realized||0)>=0?'up':'down')+
+    cell("Cash",money(cash))+
+    cell("Trades",PF.trades||0)+
+    cell("Win rate",`${PF.wins||0}/${PF.trades||0}`,wr>=50?'up':'down')+
+    cell("Open",openPos?"1 call":"—");
+  document.getElementById("book").innerHTML = openPos
+    ? `<div class="trow long"><div><div class="sym">BTC CALL</div>
+         <div class="sub">strike $${Number(openPos.strike).toLocaleString()} · entry $${fx(openPos.entryS)} · exp ${new Date(openPos.expiry*1000).toISOString().slice(0,10)}</div></div>
+       <div class="r mono">${PRICES["BTC-USD"]?'$'+fx(PRICES["BTC-USD"]):'—'}</div>
+       <div class="r mono">paid ${money(openPos.cost)}</div>
+       <div class="st on">HOLDING</div></div>`
+    : `<div class="trow"><div><div class="sym">—</div><div class="sub">flat, waiting for an EMA bull signal</div></div>
+       <div class="r mono">—</div><div class="r mono">—</div><div class="st off">CASH</div></div>`;
+  document.getElementById("foot").textContent="premium priced off realized vol · no spread or fees modelled · paper account";
+}
+
 function renderPortfolio(){
   renderTicker();
   if(!PF) return;
+  if(!PF.pos){ renderOptions(); return; }
   let eq=0; Object.entries(PF.pos).forEach(([a,p])=>eq+=valueOf(a,p).val);
   const ret=(eq/PF.start-1)*100, up=ret>=0, open=Object.values(PF.pos).filter(p=>p.units>0).length;
   document.getElementById("eq").textContent=money(eq);
@@ -237,9 +300,9 @@ function renderPortfolio(){
 
 async function loadPF(){
   try{
-    const r=await fetch("portfolio.json?t="+Date.now(),{cache:"no-store"});
-    if(!r.ok) throw new Error(`portfolio ${r.status}`);
-    PF=await r.json(); renderPortfolio();
+    const r=await fetch(BOTS[bot].file+"?t="+Date.now(),{cache:"no-store"});
+    if(!r.ok) throw new Error(`${BOTS[bot].file} ${r.status}`);
+    PF=await r.json(); syncAssets(); renderPortfolio();
   }catch(e){
     const state=document.getElementById("syncState"); state.className="live offline";
     document.getElementById("syncText").textContent="OFFLINE";
@@ -247,7 +310,8 @@ async function loadPF(){
   }
 }
 
-(async()=>{ buildTabs(); await loadPF(); if(initChart()) loadChart(); livePrices().then(renderPortfolio); })();
+/* loadPF runs first: the asset tabs are derived from the selected bot's holdings. */
+(async()=>{ await loadPF(); buildTabs(); if(initChart()) loadChart(); livePrices().then(renderPortfolio); })();
 setInterval(async()=>{ await livePrices(); renderPortfolio(); }, 9000);
 setInterval(()=>{ if(chart) loadChart(); }, 30000);
 setInterval(loadPF, 120000);
