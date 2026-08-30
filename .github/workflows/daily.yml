@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "15 22 * * *"    # After the US market close; crypto still updates daily.
   workflow_dispatch:          # lets us run it manually / on demand
+  push:
+    branches: [main]
+    paths:
+      - "ghost.py"
+      - ".github/workflows/daily.yml"
 
 permissions:
   contents: write             # needed to commit the updated portfolio back

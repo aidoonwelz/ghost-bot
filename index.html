@@ -226,7 +226,7 @@ function renderPortfolio(){
       <div class="r mono">${info.price?'$'+fx(info.price):'—'}</div>
       <div class="r mono ${pnl>=0?'up':'down'}">${L?((pnl>=0?'+':'')+money(pnl)+'  '+(pct>=0?'+':'')+pct.toFixed(1)+'%'):'—'}</div>
       <div class="st ${L?'on':'off'}">${L?'LONG':'CASH'}</div></div>`; }).join("");
-  const last=PF.updated_at||(PF.history&&PF.history.length?PF.history[PF.history.length-1].t:null);
+  const last=PF.updated_at||(PF.history&&PF.history.length?PF.history[PF.history.length-1].t:null)||(PF.last_brief?PF.last_brief+"T00:00:00Z":null);
   const age=last?Date.now()-Date.parse(last.endsWith&&last.endsWith("Z")?last:last+"Z"):Infinity;
   const state=document.getElementById("syncState"), label=document.getElementById("syncText");
   state.className="live "+(age<36*3600000?"":"stale"); label.textContent=age<36*3600000?"SYNCED":"STALE";
